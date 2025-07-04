@@ -122,7 +122,7 @@ impl Serialize for Txid {
         S: serde::Serializer,
     {
         // TODO: Serialize as a hex-encoded string (32 bytes => 64 hex characters)
-        let h = hex::encode(&self.0);
+        let h = hex::encode(self.0);
         let s = serializer.serialize_str(&h);
         s
     }
@@ -179,7 +179,7 @@ impl OutPoint {
         // TODO: Deserialize 36 bytes: txid[0..32], vout[32..36]
         // Return error if insufficient bytes
         if bytes.len() < 36 {
-            return Err(BitcoinError::InsufficientBytes);
+            Err(BitcoinError::InsufficientBytes)
         } else {
             let mut cursor = Cursor::new(bytes);
 
@@ -361,43 +361,6 @@ pub struct TransactionInput {
     pub sequence: u32,
 }
 
-fn decode_compact_size(cursor: &mut Cursor<&[u8]>) -> u64 {
-    let mut buffer = [0u8; 1];
-    cursor
-        .read_exact(&mut buffer)
-        .expect("Failed to read buffer");
-
-    let first_byte = buffer[0];
-
-    match first_byte {
-        0..=252 => first_byte as u64,
-        253 => {
-            let mut buffer = [0u8; 2];
-            cursor
-                .read_exact(&mut buffer)
-                .expect("Failed to read buffer");
-
-            u16::from_le_bytes(buffer) as u64
-        }
-        254 => {
-            let mut buffer = [0u8; 4];
-            cursor
-                .read_exact(&mut buffer)
-                .expect("Failed to read buffer");
-
-            u32::from_le_bytes(buffer) as u64
-        }
-        255 => {
-            let mut buffer = [0u8; 8];
-            cursor
-                .read_exact(&mut buffer)
-                .expect("Failed to read buffer");
-
-            u64::from_le_bytes(buffer)
-        }
-    }
-}
-
 impl TransactionInput {
     pub fn new(previous_output: OutPoint, script_sig: Script, sequence: u32) -> Self {
         // TODO: Basic constructor
@@ -420,7 +383,6 @@ impl TransactionInput {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<(Self, usize), BitcoinError> {
-        let mut cursor = Cursor::new(bytes);
         let mut total_consumed = 0;
 
         // Parse OutPoint (36 bytes)
